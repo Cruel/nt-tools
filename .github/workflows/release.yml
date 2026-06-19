@@ -1,0 +1,105 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  contents: write
+
+env:
+  VCPKG_ROOT: ${{ github.workspace }}/.cache/vcpkg
+  VCPKG_DEFAULT_TRIPLET: x64-linux
+  VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/.cache/vcpkg-binary,readwrite
+  VCPKG_MAX_CONCURRENCY: 2
+  PACKAGE_NAME: bgfx-shaderc-linux-x64
+  VCPKG_BASELINE: 40dd49b0c9c7dbd79dc64cad5e82308eae04f67f
+
+jobs:
+  release:
+    name: Build and release shaderc
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system packages
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake ninja-build curl zip unzip tar git pkg-config \
+            autoconf autoconf-archive automake libtool libltdl-dev bison flex \
+            libgl1-mesa-dev libegl1-mesa-dev libx11-dev libxext-dev libxrandr-dev \
+            libxinerama-dev libxcursor-dev libxi-dev libxkbcommon-dev libxtst-dev
+
+      - name: Cache vcpkg
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cache/vcpkg
+            .cache/vcpkg-binary
+            vcpkg_installed
+          key: ${{ runner.os }}-shaderc-vcpkg-${{ env.VCPKG_BASELINE }}
+          restore-keys: |
+            ${{ runner.os }}-shaderc-vcpkg-
+
+      - name: Bootstrap pinned vcpkg
+        run: |
+          set -euxo pipefail
+          if [ ! -d "$VCPKG_ROOT/.git" ]; then
+            git clone https://github.com/microsoft/vcpkg "$VCPKG_ROOT"
+          fi
+          git -C "$VCPKG_ROOT" fetch --tags origin
+          git -C "$VCPKG_ROOT" checkout "$VCPKG_BASELINE"
+          "$VCPKG_ROOT/bootstrap-vcpkg.sh"
+
+      - name: Install bgfx shader tools
+        run: |
+          set -euxo pipefail
+          "$VCPKG_ROOT/vcpkg" install \
+            "bgfx[tools]" \
+            --triplet="$VCPKG_DEFAULT_TRIPLET" \
+            --host-triplet=x64-linux \
+            --x-install-root="${{ github.workspace }}/vcpkg_installed"
+          SHADERC="${{ github.workspace }}/vcpkg_installed/x64-linux/tools/bgfx/shaderc"
+          test -x "$SHADERC"
+          "$SHADERC" --help >/dev/null
+          ldd "$SHADERC" || true
+
+      - name: Package shaderc
+        id: package
+        run: |
+          set -euxo pipefail
+          SHADERC="${{ github.workspace }}/vcpkg_installed/x64-linux/tools/bgfx/shaderc"
+          BGFX_INCLUDE="${{ github.workspace }}/vcpkg_installed/x64-linux/include/bgfx"
+          ARCHIVE="${PACKAGE_NAME}.tar.gz"
+          rm -rf dist
+          mkdir -p "dist/bin" "dist/include"
+          cp "$SHADERC" "dist/bin/shaderc"
+          chmod +x "dist/bin/shaderc"
+          cp -R "$BGFX_INCLUDE" "dist/include/bgfx"
+          cat > "dist/VERSION.txt" <<EOF
+          package: $PACKAGE_NAME
+          tag: ${{ github.ref_name }}
+          target: linux-x64
+          vcpkg_baseline: $VCPKG_BASELINE
+          built_at_utc: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          EOF
+          tar -C dist -czf "$ARCHIVE" .
+          sha256sum "$ARCHIVE" > "$ARCHIVE.sha256"
+          echo "archive=$ARCHIVE" >> "$GITHUB_OUTPUT"
+          echo "checksum=$ARCHIVE.sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euxo pipefail
+          gh release create "${{ github.ref_name }}" \
+            "${{ steps.package.outputs.archive }}" \
+            "${{ steps.package.outputs.checksum }}" \
+            --title "${{ github.ref_name }}" \
+            --generate-notes
