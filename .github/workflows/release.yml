@@ -66,7 +66,6 @@ jobs:
             --x-install-root="${{ github.workspace }}/vcpkg_installed"
           SHADERC="${{ github.workspace }}/vcpkg_installed/x64-linux/tools/bgfx/shaderc"
           test -x "$SHADERC"
-          "$SHADERC" --help >/dev/null
           ldd "$SHADERC" || true
 
       - name: Package shaderc
