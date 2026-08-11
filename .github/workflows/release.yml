@@ -9,12 +9,8 @@ permissions:
   contents: write
 
 env:
-  VCPKG_ROOT: ${{ github.workspace }}/.cache/vcpkg
-  VCPKG_DEFAULT_TRIPLET: x64-linux
-  VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/.cache/vcpkg-binary,readwrite
-  VCPKG_MAX_CONCURRENCY: 2
-  PACKAGE_NAME: bgfx-shaderc-linux-x64
-  VCPKG_BASELINE: 40dd49b0c9c7dbd79dc64cad5e82308eae04f67f
+  CMAKE_BUILD_PARALLEL_LEVEL: 2
+  PACKAGE_NAME: noveltea-bgfx-shaderc-linux-x64
 
 jobs:
   release:
@@ -35,59 +31,43 @@ jobs:
             libgl1-mesa-dev libegl1-mesa-dev libx11-dev libxext-dev libxrandr-dev \
             libxinerama-dev libxcursor-dev libxi-dev libxkbcommon-dev libxtst-dev
 
-      - name: Cache vcpkg
+      - name: Cache pinned bgfx shaderc source
         uses: actions/cache@v4
         with:
           path: |
-            .cache/vcpkg
-            .cache/vcpkg-binary
-            vcpkg_installed
-          key: ${{ runner.os }}-shaderc-vcpkg-${{ env.VCPKG_BASELINE }}
+            build/_deps
+          key: ${{ runner.os }}-noveltea-shaderc-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
           restore-keys: |
-            ${{ runner.os }}-shaderc-vcpkg-
+            ${{ runner.os }}-noveltea-shaderc-
 
-      - name: Bootstrap pinned vcpkg
+      - name: Configure pinned static shaderc closure
         run: |
           set -euxo pipefail
-          if [ ! -d "$VCPKG_ROOT/.git" ]; then
-            git clone https://github.com/microsoft/vcpkg "$VCPKG_ROOT"
-          fi
-          git -C "$VCPKG_ROOT" fetch --tags origin
-          git -C "$VCPKG_ROOT" checkout "$VCPKG_BASELINE"
-          "$VCPKG_ROOT/bootstrap-vcpkg.sh"
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 
-      - name: Install bgfx shader tools
+      - name: Build and stage static shaderc closure
         run: |
           set -euxo pipefail
-          "$VCPKG_ROOT/vcpkg" install \
-            "bgfx[tools]" \
-            --triplet="$VCPKG_DEFAULT_TRIPLET" \
-            --host-triplet=x64-linux \
-            --x-install-root="${{ github.workspace }}/vcpkg_installed"
-          SHADERC="${{ github.workspace }}/vcpkg_installed/x64-linux/tools/bgfx/shaderc"
-          test -x "$SHADERC"
-          ldd "$SHADERC" || true
+          cmake --build build --target noveltea_shaderc_bundle
+          cmake --install build --prefix stage
+          test -f stage/lib/libnoveltea_bgfx_shaderc_embedded.a
+          test -f stage/cmake/noveltea_shaderc_toolchain.cmake
+          test -f stage/resources/bgfx_shader.sh
 
-      - name: Package shaderc
+      - name: Package static shaderc closure
         id: package
         run: |
           set -euxo pipefail
-          SHADERC="${{ github.workspace }}/vcpkg_installed/x64-linux/tools/bgfx/shaderc"
-          BGFX_INCLUDE="${{ github.workspace }}/vcpkg_installed/x64-linux/include/bgfx"
           ARCHIVE="${PACKAGE_NAME}.tar.gz"
-          rm -rf dist
-          mkdir -p "dist/bin" "dist/include"
-          cp "$SHADERC" "dist/bin/shaderc"
-          chmod +x "dist/bin/shaderc"
-          cp -R "$BGFX_INCLUDE" "dist/include/bgfx"
-          cat > "dist/VERSION.txt" <<EOF
+          cat > "stage/VERSION.txt" <<EOF
           package: $PACKAGE_NAME
           tag: ${{ github.ref_name }}
           target: linux-x64
-          vcpkg_baseline: $VCPKG_BASELINE
+          bgfx_cmake_release: v1.129.8940-496
+          bgfx_cmake_sha256: 0fa0482d3b09ae262c9c7fc54a7193022510313f1250077caad5ff18504fce02
           built_at_utc: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
           EOF
-          tar -C dist -czf "$ARCHIVE" .
+          tar -C stage -czf "$ARCHIVE" .
           sha256sum "$ARCHIVE" > "$ARCHIVE.sha256"
           echo "archive=$ARCHIVE" >> "$GITHUB_OUTPUT"
           echo "checksum=$ARCHIVE.sha256" >> "$GITHUB_OUTPUT"
