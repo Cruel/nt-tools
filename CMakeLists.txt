@@ -14,7 +14,7 @@ set(BGFX_INSTALL OFF CACHE BOOL "" FORCE)
 set(BGFX_BUILD_TOOLS ON CACHE BOOL "" FORCE)
 set(BGFX_BUILD_TOOLS_BIN2C OFF CACHE BOOL "" FORCE)
 set(BGFX_BUILD_TOOLS_GEOMETRY OFF CACHE BOOL "" FORCE)
-set(BGFX_BUILD_TOOLS_TEXTURE OFF CACHE BOOL "" FORCE)
+set(BGFX_BUILD_TOOLS_TEXTURE ON CACHE BOOL "" FORCE)
 set(BGFX_BUILD_TOOLS_SHADER ON CACHE BOOL "" FORCE)
 set(BGFX_CUSTOM_TARGETS OFF CACHE BOOL "" FORCE)
 set(BGFX_CONFIG_MULTITHREADED OFF CACHE BOOL "" FORCE)
@@ -27,6 +27,9 @@ FetchContent_MakeAvailable(noveltea_shaderc_bgfx)
 
 if(NOT TARGET shaderc)
     message(FATAL_ERROR "Pinned bgfx source did not define its shaderc target")
+endif()
+if(NOT TARGET texturec)
+    message(FATAL_ERROR "Pinned bgfx source did not define its texturec target")
 endif()
 
 get_target_property(NOVELTEA_SHADERC_SOURCES shaderc SOURCES)
@@ -45,17 +48,37 @@ target_include_directories(noveltea_bgfx_shaderc_embedded PUBLIC
     "$<BUILD_INTERFACE:${noveltea_shaderc_bgfx_SOURCE_DIR}/bgfx/src>"
     "$<BUILD_INTERFACE:${noveltea_shaderc_bgfx_SOURCE_DIR}/bx/include>")
 
+get_target_property(NOVELTEA_TEXTUREC_SOURCES texturec SOURCES)
+get_target_property(NOVELTEA_TEXTUREC_LINKS texturec LINK_LIBRARIES)
+if(NOT NOVELTEA_TEXTUREC_SOURCES OR NOT NOVELTEA_TEXTUREC_LINKS)
+    message(FATAL_ERROR "Pinned bgfx texturec target did not expose its source/link closure")
+endif()
+
+add_library(noveltea_bimg_texturec_embedded STATIC ${NOVELTEA_TEXTUREC_SOURCES})
+set_target_properties(noveltea_bimg_texturec_embedded PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_compile_definitions(noveltea_bimg_texturec_embedded PRIVATE
+    main=noveltea_bimg_texturec_main)
+target_link_libraries(noveltea_bimg_texturec_embedded PUBLIC ${NOVELTEA_TEXTUREC_LINKS})
+
 foreach(noveltea_shaderc_dependency IN ITEMS bx bimg fcpp glslang glsl-optimizer spirv-opt spirv-cross)
     if(NOT TARGET ${noveltea_shaderc_dependency})
         message(FATAL_ERROR "Pinned bgfx shaderc closure is missing ${noveltea_shaderc_dependency}")
     endif()
 endforeach()
 
+foreach(noveltea_texturec_dependency IN ITEMS bx bimg bimg_decode bimg_encode)
+    if(NOT TARGET ${noveltea_texturec_dependency})
+        message(FATAL_ERROR "Pinned bgfx texturec closure is missing ${noveltea_texturec_dependency}")
+    endif()
+endforeach()
+
 add_custom_target(noveltea_shaderc_bundle ALL DEPENDS
-    noveltea_bgfx_shaderc_embedded bx bimg fcpp glslang glsl-optimizer spirv-opt spirv-cross)
+    noveltea_bgfx_shaderc_embedded noveltea_bimg_texturec_embedded
+    bx bimg bimg_decode bimg_encode fcpp glslang glsl-optimizer spirv-opt spirv-cross)
 
 install(TARGETS
-    noveltea_bgfx_shaderc_embedded bx bimg fcpp glslang glsl-optimizer spirv-opt spirv-cross
+    noveltea_bgfx_shaderc_embedded noveltea_bimg_texturec_embedded
+    bx bimg bimg_decode bimg_encode fcpp glslang glsl-optimizer spirv-opt spirv-cross
     ARCHIVE DESTINATION lib)
 install(DIRECTORY "${noveltea_shaderc_bgfx_SOURCE_DIR}/bgfx/tools/shaderc/"
     DESTINATION include/bgfx/tools/shaderc FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")

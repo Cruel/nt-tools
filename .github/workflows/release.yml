@@ -14,7 +14,7 @@ env:
 
 jobs:
   release:
-    name: Build and release shaderc
+    name: Build and release shaderc and texturec
     runs-on: ubuntu-22.04
     timeout-minutes: 90
 
@@ -45,16 +45,27 @@ jobs:
           set -euxo pipefail
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 
-      - name: Build and stage static shaderc closure
+      - name: Build and stage static tool closure
         run: |
           set -euxo pipefail
           cmake --build build --target noveltea_shaderc_bundle
           cmake --install build --prefix stage
           test -f stage/lib/libnoveltea_bgfx_shaderc_embedded.a
+          test -f stage/lib/libnoveltea_bimg_texturec_embedded.a
+          test -f stage/lib/libbimg_decode.a
+          test -f stage/lib/libbimg_encode.a
           test -f stage/cmake/noveltea_shaderc_toolchain.cmake
           test -f stage/resources/bgfx_shader.sh
 
-      - name: Package static shaderc closure
+      - name: Verify imported targets and PIC closure
+        run: |
+          set -euxo pipefail
+          cmake -S tests/consumer -B consumer-build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DNOVELTEA_TOOLCHAIN_FILE="$PWD/stage/cmake/noveltea_shaderc_toolchain.cmake"
+          cmake --build consumer-build
+
+      - name: Package static tool closure
         id: package
         run: |
           set -euxo pipefail
