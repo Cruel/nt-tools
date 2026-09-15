@@ -50,6 +50,7 @@ jobs:
           set -euxo pipefail
           cmake --build build --target noveltea_shaderc_bundle
           cmake --install build --prefix stage
+          test -x stage/bin/shaderc
           test -f stage/lib/libnoveltea_bgfx_shaderc_embedded.a
           test -f stage/lib/libnoveltea_bimg_texturec_embedded.a
           test -f stage/lib/libbimg_decode.a

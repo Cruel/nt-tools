@@ -136,8 +136,9 @@ foreach(noveltea_dependency IN LISTS NOVELTEA_CLOSURE_TARGETS)
 endforeach()
 
 add_custom_target(noveltea_shaderc_bundle ALL DEPENDS
-    noveltea_bgfx_shaderc_embedded noveltea_bimg_texturec_embedded ${NOVELTEA_CLOSURE_TARGETS})
+    shaderc noveltea_bgfx_shaderc_embedded noveltea_bimg_texturec_embedded ${NOVELTEA_CLOSURE_TARGETS})
 
+install(TARGETS shaderc RUNTIME DESTINATION bin)
 install(TARGETS noveltea_bgfx_shaderc_embedded noveltea_bimg_texturec_embedded
     ${NOVELTEA_CLOSURE_TARGETS} ARCHIVE DESTINATION lib)
 install(DIRECTORY "${noveltea_shaderc_bgfx_SOURCE_DIR}/bgfx/tools/shaderc/"
