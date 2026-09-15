@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 env:
-  CMAKE_BUILD_PARALLEL_LEVEL: 2
+  CMAKE_BUILD_PARALLEL_LEVEL: 6
   PACKAGE_NAME: noveltea-bgfx-shaderc-linux-x64
 
 jobs:
@@ -56,6 +56,7 @@ jobs:
           test -f stage/lib/libbimg_encode.a
           test -f stage/cmake/noveltea_shaderc_toolchain.cmake
           test -f stage/resources/bgfx_shader.sh
+          test -f stage/resources/bgfx_compute.sh
 
       - name: Verify imported targets and PIC closure
         run: |
@@ -64,20 +65,18 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DNOVELTEA_TOOLCHAIN_FILE="$PWD/stage/cmake/noveltea_shaderc_toolchain.cmake"
           cmake --build consumer-build
+          ctest --test-dir consumer-build --output-on-failure
 
       - name: Package static tool closure
         id: package
         run: |
           set -euxo pipefail
           ARCHIVE="${PACKAGE_NAME}.tar.gz"
-          cat > "stage/VERSION.txt" <<EOF
-          package: $PACKAGE_NAME
-          tag: ${{ github.ref_name }}
-          target: linux-x64
-          bgfx_cmake_release: v1.129.8940-496
-          bgfx_cmake_sha256: 0fa0482d3b09ae262c9c7fc54a7193022510313f1250077caad5ff18504fce02
-          built_at_utc: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          EOF
+          cmake \
+            -DOUTPUT="$PWD/stage/VERSION.txt" \
+            -DPACKAGE_NAME="$PACKAGE_NAME" \
+            -DTAG="${{ github.ref_name }}" \
+            -P cmake/write-version.cmake
           tar -C stage -czf "$ARCHIVE" .
           sha256sum "$ARCHIVE" > "$ARCHIVE.sha256"
           echo "archive=$ARCHIVE" >> "$GITHUB_OUTPUT"

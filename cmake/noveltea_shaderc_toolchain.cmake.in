@@ -1,4 +1,4 @@
-# Import the complete static link closure for the pinned NovelTea shader compiler.
+# Import the complete static link closure for the pinned NovelTea compilers.
 get_filename_component(_noveltea_shaderc_prefix "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 
 function(_noveltea_shaderc_import target archive)
@@ -12,25 +12,31 @@ endfunction()
 
 _noveltea_shaderc_import(noveltea_shaderc::embedded libnoveltea_bgfx_shaderc_embedded.a)
 _noveltea_shaderc_import(noveltea_texturec::embedded libnoveltea_bimg_texturec_embedded.a)
-_noveltea_shaderc_import(noveltea_shaderc::fcpp libfcpp.a)
-_noveltea_shaderc_import(noveltea_shaderc::glslang libglslang.a)
-_noveltea_shaderc_import(noveltea_shaderc::glsl_optimizer libglsl-optimizer.a)
-_noveltea_shaderc_import(noveltea_shaderc::spirv_opt libspirv-opt.a)
-_noveltea_shaderc_import(noveltea_shaderc::spirv_cross libspirv-cross.a)
-_noveltea_shaderc_import(noveltea_shaderc::bimg libbimg.a)
-_noveltea_shaderc_import(noveltea_shaderc::bx libbx.a)
-_noveltea_shaderc_import(noveltea_texturec::bimg_decode libbimg_decode.a)
-_noveltea_shaderc_import(noveltea_texturec::bimg_encode libbimg_encode.a)
+
+foreach(_noveltea_archive_entry IN ITEMS @NOVELTEA_IMPORTED_ARCHIVES@)
+    string(REPLACE "|" ";" _noveltea_archive_parts "${_noveltea_archive_entry}")
+    list(GET _noveltea_archive_parts 0 _noveltea_archive_target)
+    list(GET _noveltea_archive_parts 1 _noveltea_archive_file)
+    _noveltea_shaderc_import("noveltea_shaderc::${_noveltea_archive_target}" "${_noveltea_archive_file}")
+endforeach()
+
+set(_noveltea_shader_links)
+foreach(_noveltea_target IN ITEMS @NOVELTEA_SHADERC_LINK_TARGETS@)
+    list(APPEND _noveltea_shader_links "noveltea_shaderc::${_noveltea_target}")
+endforeach()
+set(_noveltea_texture_links)
+foreach(_noveltea_target IN ITEMS @NOVELTEA_TEXTUREC_LINK_TARGETS@)
+    list(APPEND _noveltea_texture_links "noveltea_shaderc::${_noveltea_target}")
+endforeach()
 
 set_target_properties(noveltea_shaderc::embedded PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES
-        "${_noveltea_shaderc_prefix}/include/bgfx/tools/shaderc;${_noveltea_shaderc_prefix}/include/bgfx/src;${_noveltea_shaderc_prefix}/include/bx"
+        "${_noveltea_shaderc_prefix}/include/bgfx/tools/shaderc;${_noveltea_shaderc_prefix}/include/bgfx/src;${_noveltea_shaderc_prefix}/include/bx;${_noveltea_shaderc_prefix}/include/bgfx/3rdparty/dawn;${_noveltea_shaderc_prefix}/include/bgfx/3rdparty/dawn/src;${_noveltea_shaderc_prefix}/include/bgfx/3rdparty/spirv-headers/include;${_noveltea_shaderc_prefix}/include/bgfx/3rdparty/spirv-tools/include"
     INTERFACE_LINK_LIBRARIES
-        "noveltea_shaderc::fcpp;noveltea_shaderc::glslang;noveltea_shaderc::glsl_optimizer;noveltea_shaderc::spirv_opt;noveltea_shaderc::spirv_cross;noveltea_shaderc::bimg;noveltea_shaderc::bx;${CMAKE_DL_LIBS};rt")
+        "${_noveltea_shader_links};${CMAKE_DL_LIBS};rt")
 
 set_target_properties(noveltea_texturec::embedded PROPERTIES
-    INTERFACE_LINK_LIBRARIES
-        "noveltea_texturec::bimg_decode;noveltea_texturec::bimg_encode;noveltea_shaderc::bimg;noveltea_shaderc::bx")
+    INTERFACE_LINK_LIBRARIES "${_noveltea_texture_links}")
 
 set(NOVELTEA_SHADERC_TOOLCHAIN_RESOURCE_DIR "${_noveltea_shaderc_prefix}/resources")
 unset(_noveltea_shaderc_prefix)
