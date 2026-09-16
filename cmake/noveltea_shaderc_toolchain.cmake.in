@@ -31,7 +31,8 @@ endforeach()
 
 set_target_properties(noveltea_shaderc::embedded PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES
-        "${_noveltea_shaderc_prefix}/include/bgfx/tools/shaderc;${_noveltea_shaderc_prefix}/include/bgfx/src;${_noveltea_shaderc_prefix}/include/bx;${_noveltea_shaderc_prefix}/include/bgfx/3rdparty/dawn;${_noveltea_shaderc_prefix}/include/bgfx/3rdparty/dawn/src;${_noveltea_shaderc_prefix}/include/bgfx/3rdparty/spirv-headers/include;${_noveltea_shaderc_prefix}/include/bgfx/3rdparty/spirv-tools/include"
+        "${_noveltea_shaderc_prefix}/include;${_noveltea_shaderc_prefix}/include/bgfx/tools/shaderc;${_noveltea_shaderc_prefix}/include/bgfx/src;${_noveltea_shaderc_prefix}/include/bx;${_noveltea_shaderc_prefix}/include/bgfx/3rdparty/dawn;${_noveltea_shaderc_prefix}/include/bgfx/3rdparty/dawn/src;${_noveltea_shaderc_prefix}/include/bgfx/3rdparty/spirv-headers/include;${_noveltea_shaderc_prefix}/include/bgfx/3rdparty/spirv-tools/include"
+    INTERFACE_COMPILE_DEFINITIONS "BX_CONFIG_DEBUG=0"
     INTERFACE_LINK_LIBRARIES
         "${_noveltea_shader_links};${CMAKE_DL_LIBS};rt")
 

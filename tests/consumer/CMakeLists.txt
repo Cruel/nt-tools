@@ -13,6 +13,8 @@ target_link_libraries(noveltea_toolchain_smoke PRIVATE
     noveltea_texturec::embedded)
 
 add_executable(noveltea_shaderc_smoke shaderc_smoke.cpp)
+set_target_properties(noveltea_shaderc_smoke PROPERTIES
+    CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
 target_link_libraries(noveltea_shaderc_smoke PRIVATE noveltea_shaderc::embedded)
 
 include(CTest)

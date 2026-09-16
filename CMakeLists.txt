@@ -141,6 +141,8 @@ add_custom_target(noveltea_shaderc_bundle ALL DEPENDS
 install(TARGETS shaderc RUNTIME DESTINATION bin)
 install(TARGETS noveltea_bgfx_shaderc_embedded noveltea_bimg_texturec_embedded
     ${NOVELTEA_CLOSURE_TARGETS} ARCHIVE DESTINATION lib)
+install(DIRECTORY "${noveltea_shaderc_bgfx_SOURCE_DIR}/bgfx/include/"
+    DESTINATION include FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
 install(DIRECTORY "${noveltea_shaderc_bgfx_SOURCE_DIR}/bgfx/tools/shaderc/"
     DESTINATION include/bgfx/tools/shaderc FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
 install(DIRECTORY "${noveltea_shaderc_bgfx_SOURCE_DIR}/bgfx/src/"
