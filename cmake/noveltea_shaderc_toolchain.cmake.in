@@ -28,16 +28,18 @@ set(_noveltea_texture_links)
 foreach(_noveltea_target IN ITEMS @NOVELTEA_TEXTUREC_LINK_TARGETS@)
     list(APPEND _noveltea_texture_links "noveltea_shaderc::${_noveltea_target}")
 endforeach()
+list(JOIN _noveltea_shader_links "," _noveltea_shader_link_group)
+list(JOIN _noveltea_texture_links "," _noveltea_texture_link_group)
 
 set_target_properties(noveltea_shaderc::embedded PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES
         "${_noveltea_shaderc_prefix}/include;${_noveltea_shaderc_prefix}/include/bgfx/tools/shaderc;${_noveltea_shaderc_prefix}/include/bgfx/src;${_noveltea_shaderc_prefix}/include/bx;${_noveltea_shaderc_prefix}/include/bgfx/3rdparty/dawn;${_noveltea_shaderc_prefix}/include/bgfx/3rdparty/dawn/src;${_noveltea_shaderc_prefix}/include/bgfx/3rdparty/spirv-headers/include;${_noveltea_shaderc_prefix}/include/bgfx/3rdparty/spirv-tools/include"
     INTERFACE_COMPILE_DEFINITIONS "BX_CONFIG_DEBUG=0"
     INTERFACE_LINK_LIBRARIES
-        "${_noveltea_shader_links};${CMAKE_DL_LIBS};rt")
+        "$<LINK_GROUP:RESCAN,${_noveltea_shader_link_group}>;${CMAKE_DL_LIBS};rt")
 
 set_target_properties(noveltea_texturec::embedded PROPERTIES
-    INTERFACE_LINK_LIBRARIES "${_noveltea_texture_links}")
+    INTERFACE_LINK_LIBRARIES "$<LINK_GROUP:RESCAN,${_noveltea_texture_link_group}>")
 
 set(NOVELTEA_SHADERC_TOOLCHAIN_RESOURCE_DIR "${_noveltea_shaderc_prefix}/resources")
 unset(_noveltea_shaderc_prefix)

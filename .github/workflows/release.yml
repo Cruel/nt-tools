@@ -55,9 +55,17 @@ jobs:
           test -f stage/lib/libnoveltea_bimg_texturec_embedded.a
           test -f stage/lib/libbimg_decode.a
           test -f stage/lib/libbimg_encode.a
+          test -f stage/lib/libminiz.a
           test -f stage/cmake/noveltea_shaderc_toolchain.cmake
           test -f stage/resources/bgfx_shader.sh
           test -f stage/resources/bgfx_compute.sh
+          nm --defined-only stage/lib/libminiz.a \
+            | grep -E '[[:space:]]T[[:space:]]tinfl_decompress$' >/dev/null
+          if nm --defined-only stage/lib/libbimg.a stage/lib/libbimg_decode.a \
+              | grep -E '[[:space:]]T[[:space:]]tinfl_decompress$' >/dev/null; then
+            echo 'bimg archives contain a second miniz implementation' >&2
+            exit 1
+          fi
 
       - name: Verify imported targets and PIC closure
         run: |

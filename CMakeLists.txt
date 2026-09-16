@@ -12,6 +12,20 @@ include(cmake/noveltea_bgfx_version.cmake)
 # The embedded archives must remain suitable for linking into NovelTea's shared CLI.
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# Use one standalone miniz provider throughout bimg and TinyEXR. Without an
+# explicit dependency, bgfx.cmake compiles the vendored implementation into
+# both bimg and bimg_decode while image_decode.cpp includes it a third time.
+FetchContent_Declare(noveltea_miniz
+    URL "https://github.com/richgel999/miniz/archive/refs/tags/3.1.1.tar.gz"
+    URL_HASH "SHA256=8bb29c7bd6f22356e5583e794bed4a0b3e6dfcbcadb49974fc9270ccca1e5557"
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+FetchContent_MakeAvailable(noveltea_miniz)
+if(NOT TARGET miniz)
+    message(FATAL_ERROR "Pinned miniz source did not define its miniz target")
+endif()
+set(MINIZ_LIBRARIES miniz)
+get_target_property(MINIZ_INCLUDE_DIR miniz INTERFACE_INCLUDE_DIRECTORIES)
+
 set(BGFX_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(BGFX_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(BGFX_INSTALL OFF CACHE BOOL "" FORCE)
@@ -26,7 +40,8 @@ set(BGFX_CONFIG_MULTITHREADED OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(noveltea_shaderc_bgfx
     URL "${NOVELTEA_SHADERC_BGFX_ARCHIVE_URL}"
     URL_HASH "SHA256=${NOVELTEA_SHADERC_BGFX_ARCHIVE_SHA256}"
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    PATCH_COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/patch-bgfx-miniz.cmake)
 FetchContent_MakeAvailable(noveltea_shaderc_bgfx)
 
 if(NOT TARGET shaderc)
@@ -68,9 +83,21 @@ if(NOT NOVELTEA_SHADERC_SOURCES OR NOT NOVELTEA_SHADERC_LINKS
 endif()
 
 set(NOVELTEA_CLOSURE_TARGETS)
-foreach(noveltea_link IN LISTS NOVELTEA_SHADERC_LINKS NOVELTEA_TEXTUREC_LINKS)
+foreach(noveltea_link IN LISTS NOVELTEA_SHADERC_LINKS)
     noveltea_collect_static_closure("${noveltea_link}")
 endforeach()
+set(NOVELTEA_SHADERC_CLOSURE_TARGETS ${NOVELTEA_CLOSURE_TARGETS})
+
+set(NOVELTEA_CLOSURE_TARGETS)
+foreach(noveltea_link IN LISTS NOVELTEA_TEXTUREC_LINKS)
+    noveltea_collect_static_closure("${noveltea_link}")
+endforeach()
+set(NOVELTEA_TEXTUREC_CLOSURE_TARGETS ${NOVELTEA_CLOSURE_TARGETS})
+
+set(NOVELTEA_CLOSURE_TARGETS
+    ${NOVELTEA_SHADERC_CLOSURE_TARGETS}
+    ${NOVELTEA_TEXTUREC_CLOSURE_TARGETS})
+list(REMOVE_DUPLICATES NOVELTEA_CLOSURE_TARGETS)
 
 add_library(noveltea_bgfx_shaderc_embedded STATIC ${NOVELTEA_SHADERC_SOURCES})
 set_target_properties(noveltea_bgfx_shaderc_embedded PROPERTIES
@@ -107,24 +134,11 @@ target_link_libraries(noveltea_bimg_texturec_embedded PUBLIC ${NOVELTEA_TEXTUREC
 
 # Record the two graph projections for the generated import file, while keeping
 # one deduplicated archive install list for the package.
-set(NOVELTEA_SHADERC_LINK_TARGETS)
-foreach(noveltea_link IN LISTS NOVELTEA_SHADERC_LINKS)
-    if(TARGET "${noveltea_link}")
-        get_target_property(_noveltea_type "${noveltea_link}" TYPE)
-        if(_noveltea_type STREQUAL "STATIC_LIBRARY")
-            list(APPEND NOVELTEA_SHADERC_LINK_TARGETS "${noveltea_link}")
-        endif()
-    endif()
-endforeach()
-set(NOVELTEA_TEXTUREC_LINK_TARGETS)
-foreach(noveltea_link IN LISTS NOVELTEA_TEXTUREC_LINKS)
-    if(TARGET "${noveltea_link}")
-        get_target_property(_noveltea_type "${noveltea_link}" TYPE)
-        if(_noveltea_type STREQUAL "STATIC_LIBRARY")
-            list(APPEND NOVELTEA_TEXTUREC_LINK_TARGETS "${noveltea_link}")
-        endif()
-    endif()
-endforeach()
+# Imported archives do not retain the build-tree target graph. Export each
+# tool's full static closure so consumers also receive transitive providers
+# such as bx and the canonical standalone miniz library.
+set(NOVELTEA_SHADERC_LINK_TARGETS ${NOVELTEA_SHADERC_CLOSURE_TARGETS})
+set(NOVELTEA_TEXTUREC_LINK_TARGETS ${NOVELTEA_TEXTUREC_CLOSURE_TARGETS})
 
 set(NOVELTEA_IMPORTED_ARCHIVES)
 foreach(noveltea_dependency IN LISTS NOVELTEA_CLOSURE_TARGETS)
