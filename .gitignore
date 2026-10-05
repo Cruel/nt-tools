@@ -1,3 +1,5 @@
+/ffmpeg-build/
+__pycache__/
 /build/
 /consumer-build/
 /stage/
