@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 90
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install system packages
         run: |
@@ -32,7 +32,7 @@ jobs:
             libxinerama-dev libxcursor-dev libxi-dev libxkbcommon-dev libxtst-dev
 
       - name: Cache pinned bgfx shaderc source
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             build/_deps
