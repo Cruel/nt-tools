@@ -27,7 +27,12 @@ class PackageTests(unittest.TestCase):
                 bundle.extractall(root, filter="data")
             provenance = json.loads((root / "PROVENANCE.json").read_text())
             self.assertIn(provenance["platform"], ("linux-x64", "windows-x64", "macos-arm64"))
-            self.assertEqual(provenance["components"]["ffmpeg"]["version"], "7.1.5")
+            recipe = Path(__file__).resolve().parents[2] / "ffmpeg/sources.json"
+            expected_version = os.environ.get("NOVELTEA_FFMPEG_VERSION") or json.loads(
+                recipe.read_text())["ffmpeg"]["version"]
+            self.assertEqual(provenance["components"]["ffmpeg"]["version"], expected_version)
+            if "NOVELTEA_FFMPEG_RELEASE_TAG" in os.environ:
+                self.assertEqual(provenance["release_tag"], os.environ["NOVELTEA_FFMPEG_RELEASE_TAG"])
             self.assertEqual(len(provenance["recipe_revision"]), 40)
             if provenance["platform"] == "windows-x64":
                 self.assertTrue((root / "configuration/toolchain-packages.txt").is_file())
@@ -57,7 +62,7 @@ class PackageTests(unittest.TestCase):
             binary = executables[0]
             self.assertIn(binary.name, ("ffmpeg", "ffmpeg.exe"))
             version = subprocess.check_output([str(binary), "-version"], text=True)
-            self.assertIn("ffmpeg version 7.1.5", version)
+            self.assertIn(f"ffmpeg version {expected_version} ", version)
             environment = dict(os.environ, NOVELTEA_FFMPEG=str(binary))
             subprocess.run([
                 sys.executable, "-m", "unittest", "discover", "-s",

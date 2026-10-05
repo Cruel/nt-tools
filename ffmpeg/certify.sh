@@ -4,6 +4,12 @@ set -euxo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 WORK="${FFMPEG_WORK:-$ROOT/ffmpeg-build}"
 PYTHON="${PYTHON:-python3}"
+# Optional source bundle produced once by the manual workflow's preparation job.
+if [[ $# -gt 0 ]]; then
+  cp "$1/sources.json" "$ROOT/ffmpeg/sources.json"
+  mkdir -p "$WORK/sources"
+  cp "$1/ffmpeg.tar.xz" "$WORK/sources/"
+fi
 bash "$ROOT/ffmpeg/build.sh"
 WORK="$(cd "$WORK" && pwd)"
 PLATFORM="$("$PYTHON" -c 'import json,sys; print(json.load(open(sys.argv[1]))["platform"])' "$WORK/stage/PROVENANCE.json")"

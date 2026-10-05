@@ -2,9 +2,11 @@
 
 ## NovelTea FFmpeg (authoring/export only)
 
-Tag pushes also publish `noveltea-ffmpeg-{linux-x64,windows-x64,macos-arm64}.tar.gz`
-and adjacent SHA-256 checksums. Each contains the private, relocatable `ffmpeg`
-executable, pinned corresponding sources, licenses, provenance, and build records.
+Manually run **FFmpeg Release** (`.github/workflows/ffmpeg-release.yml`) with an
+upstream version such as `7.1.5` and a new release tag/title such as `ffmpeg-r1`.
+It publishes `noveltea-ffmpeg-{linux-x64,windows-x64,macos-arm64}.tar.gz` and adjacent
+SHA-256 checksums in that separate release. Each contains the private, relocatable
+`ffmpeg` executable, exact corresponding sources, licenses, provenance, and build records.
 The LGPL-oriented configuration retains broad local-file import support and
 statically linked AV1/VP9 encoders. It is not a game-runtime dependency.
 See [the FFmpeg recipe](ffmpeg/README.md) for policy, rebuilding, and certification.

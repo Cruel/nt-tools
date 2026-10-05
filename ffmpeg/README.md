@@ -5,12 +5,43 @@ library. Consumers download a release archive, verify its adjacent `.sha256`,
 and stage `bin/ffmpeg` (or `bin/ffmpeg.exe`) in a private installation-relative
 tools directory, **not** the PATH-exposed NovelTea CLI directory.
 
-## Pins and policy
+## Manual releases
 
-`sources.json` pins release revisions and exact source-archive SHA-256 values:
-FFmpeg 7.1.5 (maintained 7.1 branch), libaom 3.15.1, libvpx 1.17.0, and zlib 1.3.2. Downloads fail closed
-on checksum mismatch. No patches are applied. Update pins and run all three
-platform certifications before tagging a new tool release.
+In GitHub Actions, choose **FFmpeg Release** → **Run workflow**, select the recipe
+branch, and enter:
+
+- `ffmpeg_version`: upstream release number, e.g. `7.1.5`. Branch names, `n7.1.5`
+  Git tags and URLs are not accepted. The release must work with this recipe.
+- `release_tag`: a new GitHub release tag **and title**, e.g. `r1` or `ffmpeg-r1`.
+  This is independent of the upstream FFmpeg version.
+
+Or use:
+
+```sh
+gh workflow run ffmpeg-release.yml -f ffmpeg_version=7.1.5 -f release_tag=ffmpeg-r1
+```
+
+The workflow rejects invalid/existing tags or releases, builds and certifies Linux
+x64, Windows x64 and macOS arm64, then creates a separate release at the selected
+recipe commit. All three builds must pass before publication. Reusing a label does
+not overwrite a release; choose a new one to retry after publishing. Archive names
+remain `noveltea-ffmpeg-<platform>.tar.gz` regardless of the label. Tag pushes to
+`.github/workflows/release.yml` still publish only the shader/texture tools.
+
+## Source selection and policy
+
+`sources.json` supplies the local/default pins: FFmpeg 7.1.5 (maintained 7.1 branch),
+libaom 3.15.1, libvpx 1.17.0, and zlib 1.3.2. External-library versions stay pinned
+when selecting another FFmpeg release. No source patches are applied.
+
+The manual workflow downloads `https://ffmpeg.org/releases/ffmpeg-<version>.tar.xz`
+once over HTTPS, computes its SHA-256, and distributes that archive and a generated
+manifest to every platform. The default version is also checked against the
+repository's known checksum. Other versions trust the upstream HTTPS download at
+selection time; their checksum is frozen for that run, not independently
+pre-approved in this repository. Each build then verifies every source archive
+against the selected manifest. The generated manifest and exact source bytes ship
+in every release, alongside the requested release label and recipe commit.
 
 FFmpeg is LGPL-2.1-or-later in this configuration: GPL, nonfree and version3
 features are explicitly disabled. libaom (AV1) and libvpx (VP9) provide the admitted
@@ -35,8 +66,17 @@ macOS OS/Xcode/SDK versions are also recorded. Windows packages are identified i
 GCC Runtime Library Exception are retained under `licenses/platform-toolchain/`.
 Normal system SDK/runtime dependencies are not redistributed.
 
-To build, certify and package in one step, run `bash ffmpeg/certify.sh`.
-Or run the individual steps:
+To build, certify and package the local pins, run `bash ffmpeg/certify.sh`.
+To reproduce manual selection locally:
+
+```sh
+python3 ffmpeg/package.py select /tmp/ffmpeg-selected-source 7.1.5
+NOVELTEA_FFMPEG_VERSION=7.1.5 NOVELTEA_FFMPEG_RELEASE_TAG=ffmpeg-r1 \
+  bash ffmpeg/certify.sh /tmp/ffmpeg-selected-source
+```
+
+Passing a selected source bundle updates the checkout's `ffmpeg/sources.json` to
+that manifest. Or run the individual local-pin steps:
 
 ```sh
 bash ffmpeg/build.sh
@@ -68,7 +108,6 @@ needed. Subcomponent copyright/licenses remain available in the full sources.
 The archive is relocatable, including paths containing spaces. Certification
 encodes and decodes AV1/VP9 WebM from deterministic local raw media, checks useful
 import formats/codecs, license/protocol restrictions and native dependency closure,
-then validates the packaged source and checksums. Only all-successful platform
-builds are published together with the existing shader-tool artifacts on tag push.
-The source/build identity is pinned; bit-for-bit reproducibility across changing
-host compiler/SDK versions is not claimed.
+then validates the packaged source, requested version/label, and checksums.
+The source/build identity is pinned per release; bit-for-bit reproducibility
+across changing host compiler/SDK versions is not claimed.

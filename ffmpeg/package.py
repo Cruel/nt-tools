@@ -2,6 +2,7 @@
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -16,6 +17,27 @@ SOURCES = json.loads((ROOT / "ffmpeg/sources.json").read_text())
 def digest(path):
     with path.open("rb") as stream:
         return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
+def select(work, version):
+    if not re.fullmatch(r"[0-9]+\.[0-9]+(?:\.[0-9]+)?", version):
+        raise ValueError(f"Invalid FFmpeg release version: {version!r}; use e.g. 7.1.5")
+    work.mkdir(parents=True, exist_ok=True)
+    component = dict(SOURCES["ffmpeg"])
+    component.update(version=version, directory=f"ffmpeg-{version}",
+                     url=f"https://ffmpeg.org/releases/ffmpeg-{version}.tar.xz")
+    archive = work / component["archive"]
+    with (urllib.request.urlopen(component["url"], timeout=120) as response,
+          archive.open("wb") as output):
+        shutil.copyfileobj(response, output)
+    checksum = digest(archive)
+    if version == SOURCES["ffmpeg"]["version"] and checksum != SOURCES["ffmpeg"]["sha256"]:
+        archive.unlink()
+        raise ValueError("Pinned FFmpeg source checksum mismatch")
+    component["sha256"] = checksum
+    selected = dict(SOURCES, ffmpeg=component)
+    (work / "sources.json").write_text(json.dumps(selected, indent=2) + "\n")
+    print(f"Selected FFmpeg {version}: SHA256={checksum}")
 
 
 def fetch(work):
@@ -88,7 +110,7 @@ def stage(work, platform):
     provenance = {
         "package": "noveltea-ffmpeg-" + platform,
         "platform": platform,
-        "release_tag": os.environ.get("GITHUB_REF_NAME", "local"),
+        "release_tag": os.environ.get("NOVELTEA_FFMPEG_RELEASE_TAG") or os.environ.get("GITHUB_REF_NAME", "local"),
         "recipe_revision": revision,
         "components": SOURCES,
         "license": "LGPL-2.1-or-later (FFmpeg); BSD-2-Clause + patent grant (libaom); BSD-3-Clause + patent grant (libvpx); Zlib (zlib)",
@@ -127,4 +149,4 @@ def archive(work, platform):
 
 if __name__ == "__main__":
     command, directory, *args = sys.argv[1:]
-    {"fetch": fetch, "stage": stage, "archive": archive}[command](Path(directory).resolve(), *args)
+    {"select": select, "fetch": fetch, "stage": stage, "archive": archive}[command](Path(directory).resolve(), *args)
