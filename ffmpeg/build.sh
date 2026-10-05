@@ -9,6 +9,8 @@ PREFIX="$WORK/prefix"
 STAGE="$WORK/stage"
 JOBS="${JOBS:-6}"
 PYTHON="${PYTHON:-python3}"
+# Capture source-verification failures too, not just compilation.
+exec > >(tee "$WORK/build.log") 2>&1
 export CC="${CC:-cc}" CXX="${CXX:-c++}"
 export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig"
 export PKG_CONFIG_LIBDIR="$PKG_CONFIG_PATH"
@@ -20,16 +22,18 @@ read -r FFMPEG_SOURCE AOM_SOURCE VPX_SOURCE ZLIB_SOURCE < <(
 # Start fresh: no reuse of configured objects across changes or platforms.
 rm -rf "$PREFIX" "$STAGE" "$WORK/aom-build" "$WORK/zlib-build" "$WORK/ffmpeg-build"
 mkdir -p "$PREFIX" "$STAGE" "$WORK/ffmpeg-build"
-exec > >(tee "$WORK/build.log") 2>&1
 uname -a
 "$CC" --version
 "$CXX" --version
 cmake --version
 nasm -v
 pkg-config --version
+perl --version
 case "$(uname -s)" in
   Linux) PLATFORM=linux-x64; VPX_TARGET=x86_64-linux-gcc; EXTRA=() ;;
-  Darwin) PLATFORM=macos-arm64; VPX_TARGET=arm64-darwin-gcc
+  Darwin) PLATFORM=macos-arm64
+    # The unnumbered arm64-darwin target is iOS in libvpx, not macOS.
+    VPX_TARGET="arm64-darwin$(uname -r | cut -d. -f1)-gcc"
     sw_vers
     xcodebuild -version
     xcrun --show-sdk-version
@@ -63,7 +67,7 @@ cmake -S "$WORK/src/$AOM_SOURCE" -B "$WORK/aom-build" -G Ninja \
   -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$PREFIX" \
   -DCMAKE_INSTALL_LIBDIR=lib -DBUILD_SHARED_LIBS=OFF \
   -DENABLE_DOCS=OFF -DENABLE_EXAMPLES=OFF -DENABLE_TESTS=OFF \
-  -DENABLE_TOOLS=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+  -DENABLE_TOOLS=OFF -DENABLE_NASM=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON
 cmake --build "$WORK/aom-build" -j "$JOBS"
 cmake --install "$WORK/aom-build"
 (
@@ -74,6 +78,8 @@ cmake --install "$WORK/aom-build"
   make -j "$JOBS"
   make install
 )
+# Record the static dependency flags that FFmpeg's configure probes will use.
+pkg-config --static --cflags --libs aom vpx zlib
 (
   cd "$WORK/ffmpeg-build"
   "$WORK/src/$FFMPEG_SOURCE/configure" --prefix="$PREFIX" \

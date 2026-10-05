@@ -9,7 +9,9 @@ SHA-256 checksums in that separate release. Each contains the private, relocatab
 `ffmpeg` executable, exact corresponding sources, licenses, provenance, and build records.
 The LGPL-oriented configuration retains broad local-file import support and
 statically linked AV1/VP9 encoders. It is not a game-runtime dependency.
-See [the FFmpeg recipe](ffmpeg/README.md) for policy, rebuilding, and certification.
+Uncheck `publish_release` for a build-only diagnostic run; failures retain native
+configure/build logs. See [the FFmpeg recipe](ffmpeg/README.md) for policy,
+rebuilding, and certification.
 
 ## Embedded shader/texture compilers
 

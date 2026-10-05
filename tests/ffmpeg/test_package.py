@@ -37,6 +37,8 @@ class PackageTests(unittest.TestCase):
             if provenance["platform"] == "windows-x64":
                 self.assertTrue((root / "configuration/toolchain-packages.txt").is_file())
                 self.assertTrue(list((root / "licenses/platform-toolchain").rglob("COPYING*")))
+            self.assertEqual({path.name for path in (root / "sources").iterdir() if path.is_file()},
+                             {info["archive"] for info in provenance["components"].values()})
             for component, info in provenance["components"].items():
                 with self.subTest(component=component):
                     self.assertEqual(digest(root / "sources" / info["archive"]), info["sha256"])

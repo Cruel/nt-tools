@@ -14,6 +14,8 @@ branch, and enter:
   Git tags and URLs are not accepted. The release must work with this recipe.
 - `release_tag`: a new GitHub release tag **and title**, e.g. `r1` or `ffmpeg-r1`.
   This is independent of the upstream FFmpeg version.
+- `publish_release`: defaults to true. Uncheck it for a build-only diagnostic run;
+  artifacts/certification still run, but no release/tag is created. Use an unused label.
 
 Or use:
 
@@ -39,8 +41,9 @@ once over HTTPS, computes its SHA-256, and distributes that archive and a genera
 manifest to every platform. The default version is also checked against the
 repository's known checksum. Other versions trust the upstream HTTPS download at
 selection time; their checksum is frozen for that run, not independently
-pre-approved in this repository. Each build then verifies every source archive
-against the selected manifest. The generated manifest and exact source bytes ship
+pre-approved in this repository. The preparation job also downloads and verifies all external-library source
+archives, and distributes that identical complete closure to each runner. Each
+native build then verifies every archive against the selected manifest. The generated manifest and exact source bytes ship
 in every release, alongside the requested release label and recipe commit.
 
 FFmpeg is LGPL-2.1-or-later in this configuration: GPL, nonfree and version3
@@ -90,7 +93,10 @@ NOVELTEA_FFMPEG_ARCHIVE="$PWD/ffmpeg-build/noveltea-ffmpeg-linux-x64.tar.gz" \
 Use `.exe` and the appropriate platform name on Windows. Use `macos-arm64` on Mac.
 `FFMPEG_WORK` selects a disposable work directory; `JOBS` defaults to 6.
 The build removes old extracted sources and build outputs before rebuilding.
-Sources are cached only as checksum-verified archives.
+Sources are cached only as checksum-verified archives. Failed verification remains
+fatal, but retains the bad bytes as `<archive>.rejected` and a
+`<archive>.download.json` report with actual/expected hashes, byte count and
+response content type. These diagnostic files are excluded from release packages.
 
 Each release includes **complete corresponding source archives**, the recipe and
 certification scripts under `sources/build-recipe/`, original license/patent
@@ -111,3 +117,9 @@ import formats/codecs, license/protocol restrictions and native dependency closu
 then validates the packaged source, requested version/label, and checksums.
 The source/build identity is pinned per release; bit-for-bit reproducibility
 across changing host compiler/SDK versions is not claimed.
+
+On failure, the manual workflow retains `ffmpeg-diagnostics-<platform>` artifacts
+with build/configure logs, toolchain records and pkg-config files for seven days.
+Preparation download failures retain `ffmpeg-source-diagnostics`. See
+[the Windows/macOS review](PLATFORM-NOTES.md) for the upstream platform guidance,
+macOS libvpx target correction, and remaining Windows diagnosis.

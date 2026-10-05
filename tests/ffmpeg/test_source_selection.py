@@ -38,11 +38,12 @@ class SourceSelectionTests(unittest.TestCase):
             self.assertEqual(selected["ffmpeg"]["url"], "https://ffmpeg.org/releases/ffmpeg-7.1.4.tar.xz")
             for component in ("aom", "vpx", "zlib"):
                 self.assertEqual(selected[component], original[component])
-            archive = Path(directory) / selected["ffmpeg"]["archive"]
-            with archive.open("rb") as stream:
-                self.assertEqual(hashlib.file_digest(stream, "sha256").hexdigest(),
-                                 selected["ffmpeg"]["sha256"])
-            with tarfile.open(archive) as bundle:
+            for component in selected.values():
+                archive = Path(directory) / component["archive"]
+                with archive.open("rb") as stream:
+                    self.assertEqual(hashlib.file_digest(stream, "sha256").hexdigest(),
+                                     component["sha256"])
+            with tarfile.open(Path(directory) / selected["ffmpeg"]["archive"]) as bundle:
                 self.assertIn("ffmpeg-7.1.4/configure", bundle.getnames())
 
 

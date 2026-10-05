@@ -8,7 +8,7 @@ PYTHON="${PYTHON:-python3}"
 if [[ $# -gt 0 ]]; then
   cp "$1/sources.json" "$ROOT/ffmpeg/sources.json"
   mkdir -p "$WORK/sources"
-  cp "$1/ffmpeg.tar.xz" "$WORK/sources/"
+  cp "$1/"*.tar.gz "$1/"*.tar.xz "$WORK/sources/"
 fi
 bash "$ROOT/ffmpeg/build.sh"
 WORK="$(cd "$WORK" && pwd)"

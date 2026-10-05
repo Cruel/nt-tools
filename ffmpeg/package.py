@@ -19,6 +19,28 @@ def digest(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
+def download_source(archive, url, expected=None):
+    content_type = "cached"
+    if expected is None or not archive.exists():
+        with (urllib.request.urlopen(url, timeout=120) as response,
+              archive.open("wb") as output):
+            content_type = response.headers.get("Content-Type", "unknown")
+            shutil.copyfileobj(response, output)
+    actual = digest(archive)
+    if expected is not None and actual != expected:
+        size = archive.stat().st_size
+        rejected = archive.with_name(archive.name + ".rejected")
+        archive.replace(rejected)
+        report = {"url": url, "expected_sha256": expected, "actual_sha256": actual,
+                  "size_bytes": size, "content_type": content_type,
+                  "rejected_archive": rejected.name}
+        archive.with_name(archive.name + ".download.json").write_text(
+            json.dumps(report, indent=2) + "\n")
+        raise ValueError(f"Source checksum mismatch: {url}; expected={expected}; "
+                         f"actual={actual}; bytes={size}; type={content_type}; retained={rejected}")
+    return actual
+
+
 def select(work, version):
     if not re.fullmatch(r"[0-9]+\.[0-9]+(?:\.[0-9]+)?", version):
         raise ValueError(f"Invalid FFmpeg release version: {version!r}; use e.g. 7.1.5")
@@ -27,15 +49,15 @@ def select(work, version):
     component.update(version=version, directory=f"ffmpeg-{version}",
                      url=f"https://ffmpeg.org/releases/ffmpeg-{version}.tar.xz")
     archive = work / component["archive"]
-    with (urllib.request.urlopen(component["url"], timeout=120) as response,
-          archive.open("wb") as output):
-        shutil.copyfileobj(response, output)
-    checksum = digest(archive)
-    if version == SOURCES["ffmpeg"]["version"] and checksum != SOURCES["ffmpeg"]["sha256"]:
-        archive.unlink()
-        raise ValueError("Pinned FFmpeg source checksum mismatch")
+    # Selection may reuse a directory previously used for another FFmpeg version.
+    archive.unlink(missing_ok=True)
+    expected = SOURCES["ffmpeg"]["sha256"] if version == SOURCES["ffmpeg"]["version"] else None
+    checksum = download_source(archive, component["url"], expected)
     component["sha256"] = checksum
     selected = dict(SOURCES, ffmpeg=component)
+    for name, dependency in selected.items():
+        if name != "ffmpeg":
+            download_source(work / dependency["archive"], dependency["url"], dependency["sha256"])
     (work / "sources.json").write_text(json.dumps(selected, indent=2) + "\n")
     print(f"Selected FFmpeg {version}: SHA256={checksum}")
 
@@ -49,13 +71,7 @@ def fetch(work):
     source.mkdir()
     for component in SOURCES.values():
         archive = archives / component["archive"]
-        if not archive.exists():
-            with (urllib.request.urlopen(component["url"], timeout=120) as response,
-                  archive.open("wb") as output):
-                shutil.copyfileobj(response, output)
-        if digest(archive) != component["sha256"]:
-            archive.unlink()
-            raise ValueError(f"Source checksum mismatch: {component['url']}")
+        download_source(archive, component["url"], component["sha256"])
         with tarfile.open(archive) as bundle:
             bundle.extractall(source, filter="data")
 
@@ -66,7 +82,9 @@ def stage(work, platform):
     suffix = ".exe" if platform == "windows-x64" else ""
     binary = output / "bin" / ("ffmpeg" + suffix)
     shutil.copy2(work / "ffmpeg-build" / binary.name, binary)
-    shutil.copytree(work / "sources", output / "sources")
+    (output / "sources").mkdir()
+    for component in SOURCES.values():
+        shutil.copy2(work / "sources" / component["archive"], output / "sources")
     shutil.copytree(ROOT / "ffmpeg", output / "sources/build-recipe/ffmpeg",
                     ignore=shutil.ignore_patterns("__pycache__"))
     shutil.copytree(ROOT / "tests/ffmpeg", output / "sources/build-recipe/tests/ffmpeg",

@@ -12,6 +12,11 @@ on:
         description: 'New GitHub release tag and title (e.g. ffmpeg-r1)'
         required: true
         type: string
+      publish_release:
+        description: 'Publish after certification (uncheck for build-only diagnostics)'
+        required: true
+        default: true
+        type: boolean
 
 permissions:
   contents: read
@@ -55,13 +60,26 @@ jobs:
             echo "Release already exists: $RELEASE_TAG" >&2
             exit 1
           fi
-      - name: Download requested upstream release and freeze its checksum
+      - name: Download and verify the complete source closure
         run: python3 ffmpeg/package.py select ffmpeg-selected-source "$NOVELTEA_FFMPEG_VERSION"
       - uses: actions/upload-artifact@v4
         with:
           name: ffmpeg-selected-source
-          path: ffmpeg-selected-source/
+          path: |
+            ffmpeg-selected-source/sources.json
+            ffmpeg-selected-source/*.tar.gz
+            ffmpeg-selected-source/*.tar.xz
           if-no-files-found: error
+      - name: Preserve rejected source downloads
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-source-diagnostics
+          path: |
+            ffmpeg-selected-source/*.download.json
+            ffmpeg-selected-source/*.rejected
+          if-no-files-found: ignore
+          retention-days: 7
 
   build:
     name: FFmpeg (${{ matrix.platform }})
@@ -104,7 +122,7 @@ jobs:
           msystem: MINGW64
           update: true
           install: >-
-            make python
+            make python perl diffutils
             mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake
             mingw-w64-x86_64-ninja mingw-w64-x86_64-nasm
             mingw-w64-x86_64-pkgconf
@@ -119,6 +137,27 @@ jobs:
           CC: gcc
           CXX: g++
         run: bash ffmpeg/certify.sh ffmpeg-selected-source
+      - name: Preserve native build failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-diagnostics-${{ matrix.platform }}
+          path: |
+            ffmpeg-build/build.log
+            ffmpeg-build/toolchain-packages.txt
+            ffmpeg-build/ffmpeg-build/ffbuild/config.log
+            ffmpeg-build/ffmpeg-build/ffbuild/config.mak
+            ffmpeg-build/aom-build/CMakeCache.txt
+            ffmpeg-build/aom-build/CMakeFiles/CMakeConfigureLog.yaml
+            ffmpeg-build/zlib-build/CMakeCache.txt
+            ffmpeg-build/zlib-build/CMakeFiles/CMakeConfigureLog.yaml
+            ffmpeg-build/src/libvpx-*/config.log
+            ffmpeg-build/src/libvpx-*/vpx_config.h
+            ffmpeg-build/prefix/lib/pkgconfig/*.pc
+            ffmpeg-build/sources/*.download.json
+            ffmpeg-build/sources/*.rejected
+          if-no-files-found: ignore
+          retention-days: 7
       - uses: actions/upload-artifact@v4
         with:
           name: ffmpeg-binary-${{ matrix.platform }}
@@ -129,6 +168,7 @@ jobs:
 
   publish:
     name: Publish separate FFmpeg release
+    if: inputs.publish_release
     needs: build
     permissions:
       contents: write
