@@ -16,8 +16,8 @@ export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig"
 export PKG_CONFIG_LIBDIR="$PKG_CONFIG_PATH"
 export PATH="$PREFIX/bin:$PATH"
 "$PYTHON" "$ROOT/ffmpeg/package.py" fetch "$WORK"
-read -r FFMPEG_SOURCE AOM_SOURCE VPX_SOURCE ZLIB_SOURCE < <(
-  "$PYTHON" -c 'import json,sys; p=json.load(open(sys.argv[1])); print(*(p[k]["directory"] for k in ("ffmpeg", "aom", "vpx", "zlib")))' "$ROOT/ffmpeg/sources.json"
+read -r FFMPEG_SOURCE AOM_SOURCE VPX_SOURCE ZLIB_SOURCE ZIMG_SOURCE < <(
+  "$PYTHON" -c 'import json,sys; p=json.load(open(sys.argv[1])); print(*(p[k]["directory"] for k in ("ffmpeg", "aom", "vpx", "zlib", "zimg")))' "$ROOT/ffmpeg/sources.json"
 )
 # Start fresh: no reuse of configured objects across changes or platforms.
 rm -rf "$PREFIX" "$STAGE" "$WORK/aom-build" "$WORK/zlib-build" "$WORK/ffmpeg-build"
@@ -78,8 +78,18 @@ cmake --install "$WORK/aom-build"
   make -j "$JOBS"
   make install
 )
+# zimg ships an Autotools source checkout (no pre-generated configure).
+# Build a static library into our private prefix on every supported platform.
+(
+  cd "$WORK/src/$ZIMG_SOURCE"
+  ./autogen.sh
+  ./configure --prefix="$PREFIX" --disable-shared --enable-static --with-pic \
+    --disable-testapp --disable-unit-test --disable-example
+  make -j "$JOBS"
+  make install
+)
 # Record the static dependency flags that FFmpeg's configure probes will use.
-pkg-config --static --cflags --libs aom vpx zlib
+pkg-config --static --cflags --libs aom vpx zlib zimg
 (
   cd "$WORK/ffmpeg-build"
   "$WORK/src/$FFMPEG_SOURCE/configure" --prefix="$PREFIX" \
@@ -87,7 +97,7 @@ pkg-config --static --cflags --libs aom vpx zlib
     --disable-gpl --disable-nonfree --disable-version3 \
     --disable-shared --enable-static --pkg-config-flags=--static \
     --extra-cflags="-I$PREFIX/include" --extra-ldflags="-L$PREFIX/lib" \
-    --enable-libaom --enable-libvpx --enable-zlib \
+    --enable-libaom --enable-libvpx --enable-libzimg --enable-zlib \
     --disable-programs --enable-ffmpeg --disable-doc \
     --disable-network --disable-devices --disable-protocols \
     --enable-protocol=file,pipe --disable-avdevice \

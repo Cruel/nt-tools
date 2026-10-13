@@ -10,7 +10,7 @@ tools directory, **not** the PATH-exposed NovelTea CLI directory.
 In GitHub Actions, choose **FFmpeg Release** → **Run workflow**, select the recipe
 branch, and enter:
 
-- `ffmpeg_version`: upstream release number, e.g. `7.1.5`. Branch names, `n7.1.5`
+- `ffmpeg_version`: upstream release number, e.g. `9.0.1`. Branch names, `n7.1.5`
   Git tags and URLs are not accepted. The release must work with this recipe.
 - `release_tag`: a new GitHub release tag **and title**, e.g. `r1` or `ffmpeg-r1`.
   This is independent of the upstream FFmpeg version.
@@ -20,7 +20,7 @@ branch, and enter:
 Or use:
 
 ```sh
-gh workflow run ffmpeg-release.yml -f ffmpeg_version=7.1.5 -f release_tag=ffmpeg-r1
+gh workflow run ffmpeg-release.yml -f ffmpeg_version=9.0.1 -f release_tag=ffmpeg-r2
 ```
 
 The workflow rejects invalid/existing tags or releases, builds and certifies Linux
@@ -32,8 +32,8 @@ remain `noveltea-ffmpeg-<platform>.tar.gz` regardless of the label. Tag pushes t
 
 ## Source selection and policy
 
-`sources.json` supplies the local/default pins: FFmpeg 7.1.5 (maintained 7.1 branch),
-libaom 3.15.1, libvpx 1.17.0, and zlib 1.3.2. External-library versions stay pinned
+`sources.json` supplies the local/default pins: FFmpeg 9.0.1,
+libaom 3.15.1, libvpx 1.17.0, zlib 1.3.2, and zimg 3.0.6. External-library versions stay pinned
 when selecting another FFmpeg release. No source patches are applied.
 
 The manual workflow downloads `https://ffmpeg.org/releases/ffmpeg-<version>.tar.xz`
@@ -47,8 +47,9 @@ native build then verifies every archive against the selected manifest. The gene
 in every release, alongside the requested release label and recipe commit.
 
 FFmpeg is LGPL-2.1-or-later in this configuration: GPL, nonfree and version3
-features are explicitly disabled. libaom (AV1) and libvpx (VP9) provide the admitted
-output encoders, with static zlib for compressed image/media imports. All internal
+features are explicitly disabled. zimg uses WTFPL-2. libaom (AV1) and libvpx (VP9) provide the admitted
+output encoders, with static zlib for compressed image/media imports and
+static zimg for `zscale` color conversion and HDR preprocessing. All internal
 local-file demuxers/decoders and software filters remain enabled by default.
 External autodetection is disabled so host packages cannot silently change the
 closure/license. Network, capture/device, hardware accelerators, ffplay and ffprobe
@@ -59,7 +60,8 @@ makes no patent-clearance claim.
 
 ## Rebuild / modify / relink
 
-Use Python >=3.12, Bash, C/C++, make, CMake, Ninja, NASM, and pkg-config. Native
+Use Python >=3.12, Bash, C/C++, make, CMake, Ninja, NASM, Autoconf,
+Automake, Libtool, and pkg-config. Native
 release hosts are Ubuntu 22.04 x64, macOS 14 arm64 with Xcode command-line tools
 and Homebrew build tools, or Windows 2022 x64 with MSYS2 MINGW64. Windows uses
 `CC=gcc CXX=g++` and the MSYS Python interpreter. The release workflow records
@@ -73,8 +75,8 @@ To build, certify and package the local pins, run `bash ffmpeg/certify.sh`.
 To reproduce manual selection locally:
 
 ```sh
-python3 ffmpeg/package.py select /tmp/ffmpeg-selected-source 7.1.5
-NOVELTEA_FFMPEG_VERSION=7.1.5 NOVELTEA_FFMPEG_RELEASE_TAG=ffmpeg-r1 \
+python3 ffmpeg/package.py select /tmp/ffmpeg-selected-source 9.0.1
+NOVELTEA_FFMPEG_VERSION=9.0.1 NOVELTEA_FFMPEG_RELEASE_TAG=ffmpeg-r2 \
   bash ffmpeg/certify.sh /tmp/ffmpeg-selected-source
 ```
 

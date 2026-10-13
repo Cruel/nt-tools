@@ -45,6 +45,7 @@ class PackageTests(unittest.TestCase):
                     self.assertTrue(list((root / "licenses" / component).iterdir()))
             for path in ("NOTICE.txt", "BUILD.log", "configuration/ffmpeg-config.h",
                          "configuration/ffmpeg-config.log", "configuration/ffmpeg-buildconf.txt",
+                         "configuration/zimg-config.log",
                          "sources/build-recipe/ffmpeg/build.sh",
                          "sources/build-recipe/ffmpeg/package.py",
                          "sources/build-recipe/ffmpeg/sources.json",

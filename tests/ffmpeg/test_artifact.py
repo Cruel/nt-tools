@@ -65,6 +65,24 @@ class ExecutableTests(unittest.TestCase):
             with self.subTest(container=container):
                 self.assertIn(container, formats)
 
+    def test_static_zimg_filter_and_execution(self):
+        configuration = self.ffmpeg("-buildconf").stdout
+        self.assertIn("--enable-libzimg", configuration)
+        filters = self.ffmpeg("-filters").stdout
+        self.assertIn("zscale", filters)
+        self.assertIn("tonemap", filters)
+        with tempfile.TemporaryDirectory(prefix="noveltea zscale ") as directory:
+            source = Path(directory) / "rgb.input"
+            source.write_bytes(bytes((64,)) * (32 * 32) + bytes((128,)) * (32 * 32 // 2))
+            result = subprocess.run([
+                self.binary, "-hide_banner", "-nostdin", "-v", "error",
+                "-f", "rawvideo", "-pixel_format", "yuv420p",
+                "-video_size", "32x32", "-framerate", "1",
+                "-i", str(source), "-vf", "zscale=w=16:h=16,format=yuv420p",
+                "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "yuv420p", "pipe:1",
+            ], capture_output=True, check=True, timeout=120)
+            self.assertEqual(len(result.stdout), 16 * 16 * 3 // 2)
+
     def test_relocated_av1_vp9_roundtrip(self):
         import shutil
         with tempfile.TemporaryDirectory(prefix="noveltea media ") as directory:

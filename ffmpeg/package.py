@@ -98,6 +98,7 @@ def stage(work, platform):
         ("ffmpeg-build/ffbuild/config.log", "ffmpeg-config.log"),
         ("aom-build/CMakeCache.txt", "aom-CMakeCache.txt"),
         ("zlib-build/CMakeCache.txt", "zlib-CMakeCache.txt"),
+        (f"src/{SOURCES['zimg']['directory']}/config.log", "zimg-config.log"),
         (f"src/{SOURCES['vpx']['directory']}/config.log", "vpx-config.log"),
         (f"src/{SOURCES['vpx']['directory']}/vpx_config.h", "vpx-config.h"),
     ):
@@ -131,7 +132,7 @@ def stage(work, platform):
         "release_tag": os.environ.get("NOVELTEA_FFMPEG_RELEASE_TAG") or os.environ.get("GITHUB_REF_NAME", "local"),
         "recipe_revision": revision,
         "components": SOURCES,
-        "license": "LGPL-2.1-or-later (FFmpeg); BSD-2-Clause + patent grant (libaom); BSD-3-Clause + patent grant (libvpx); Zlib (zlib)",
+        "license": "LGPL-2.1-or-later (FFmpeg); BSD-2-Clause + patent grant (libaom); BSD-3-Clause + patent grant (libvpx); Zlib (zlib); WTFPL-2 (zimg)",
         "build_record": "BUILD.log and configuration/",
     }
     (output / "PROVENANCE.json").write_text(json.dumps(provenance, indent=2) + "\n")

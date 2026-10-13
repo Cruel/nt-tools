@@ -6,7 +6,7 @@ on:
       ffmpeg_version:
         description: 'Upstream FFmpeg release number (e.g. 7.1.5, not a branch or n-prefixed tag)'
         required: true
-        default: '7.1.5'
+        default: '9.0.1'
         type: string
       release_tag:
         description: 'New GitHub release tag and title (e.g. ffmpeg-r1)'
@@ -112,17 +112,17 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build nasm pkg-config
+          sudo apt-get install -y build-essential cmake ninja-build nasm pkg-config autoconf automake libtool
       - name: macOS toolchain
         if: runner.os == 'macOS'
-        run: brew install cmake ninja nasm pkg-config
+        run: brew install cmake ninja nasm pkg-config autoconf automake libtool
       - uses: msys2/setup-msys2@v2
         if: runner.os == 'Windows'
         with:
           msystem: MINGW64
           update: true
           install: >-
-            make python perl diffutils
+            make python perl diffutils autoconf automake libtool
             mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake
             mingw-w64-x86_64-ninja mingw-w64-x86_64-nasm
             mingw-w64-x86_64-pkgconf
@@ -149,6 +149,7 @@ jobs:
             ffmpeg-build/ffmpeg-build/ffbuild/config.mak
             ffmpeg-build/aom-build/CMakeCache.txt
             ffmpeg-build/aom-build/CMakeFiles/CMakeConfigureLog.yaml
+            ffmpeg-build/src/zimg-*/config.log
             ffmpeg-build/zlib-build/CMakeCache.txt
             ffmpeg-build/zlib-build/CMakeFiles/CMakeConfigureLog.yaml
             ffmpeg-build/src/libvpx-*/config.log
