@@ -30,7 +30,7 @@ nasm -v
 pkg-config --version
 perl --version
 case "$(uname -s)" in
-  Linux) PLATFORM=linux-x64; VPX_TARGET=x86_64-linux-gcc; EXTRA=() ;;
+  Linux) PLATFORM=linux-x64; VPX_TARGET=x86_64-linux-gcc; EXTRA=(--extra-libs=-lm) ;;
   Darwin) PLATFORM=macos-arm64
     # The unnumbered arm64-darwin target is iOS in libvpx, not macOS.
     VPX_TARGET="arm64-darwin$(uname -r | cut -d. -f1)-gcc"

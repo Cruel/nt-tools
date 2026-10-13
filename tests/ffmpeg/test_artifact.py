@@ -52,7 +52,7 @@ class ExecutableTests(unittest.TestCase):
             self.assertTrue(dependencies)
             for name in dependencies:
                 self.assertIn(name, {"libc.so.6", "libm.so.6", "libpthread.so.0",
-                                     "libdl.so.2", "librt.so.1", "libgcc_s.so.1"})
+                                     "libdl.so.2", "librt.so.1", "libgcc_s.so.1", "libstdc++.so.6", "ld-linux-x86-64.so.2"})
 
     def test_broad_import_support(self):
         decoders = self.ffmpeg("-decoders").stdout.split()
