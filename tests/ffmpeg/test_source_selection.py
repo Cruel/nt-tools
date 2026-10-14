@@ -36,7 +36,7 @@ class SourceSelectionTests(unittest.TestCase):
             self.assertEqual(selected["ffmpeg"]["version"], "7.1.4")
             self.assertEqual(selected["ffmpeg"]["directory"], "ffmpeg-7.1.4")
             self.assertEqual(selected["ffmpeg"]["url"], "https://ffmpeg.org/releases/ffmpeg-7.1.4.tar.xz")
-            for component in ("aom", "vpx", "zlib", "zimg"):
+            for component in ("aom", "vpx", "zlib", "zimg", "webp"):
                 self.assertEqual(selected[component], original[component])
             for component in selected.values():
                 archive = Path(directory) / component["archive"]

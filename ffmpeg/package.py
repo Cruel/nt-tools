@@ -97,6 +97,7 @@ def stage(work, platform):
         ("ffmpeg-build/ffbuild/config.mak", "ffmpeg-config.mak"),
         ("ffmpeg-build/ffbuild/config.log", "ffmpeg-config.log"),
         ("aom-build/CMakeCache.txt", "aom-CMakeCache.txt"),
+        ("webp-build/CMakeCache.txt", "webp-CMakeCache.txt"),
         ("zlib-build/CMakeCache.txt", "zlib-CMakeCache.txt"),
         (f"src/{SOURCES['zimg']['directory']}/config.log", "zimg-config.log"),
         (f"src/{SOURCES['vpx']['directory']}/config.log", "vpx-config.log"),
@@ -132,7 +133,7 @@ def stage(work, platform):
         "release_tag": os.environ.get("NOVELTEA_FFMPEG_RELEASE_TAG") or os.environ.get("GITHUB_REF_NAME", "local"),
         "recipe_revision": revision,
         "components": SOURCES,
-        "license": "LGPL-2.1-or-later (FFmpeg); BSD-2-Clause + patent grant (libaom); BSD-3-Clause + patent grant (libvpx); Zlib (zlib); WTFPL-2 (zimg)",
+        "license": "LGPL-2.1-or-later (FFmpeg); BSD-2-Clause + patent grant (libaom); BSD-3-Clause + patent grant (libvpx); Zlib (zlib); WTFPL-2 (zimg); BSD-3-Clause + patent grant (libwebp)",
         "build_record": "BUILD.log and configuration/",
     }
     (output / "PROVENANCE.json").write_text(json.dumps(provenance, indent=2) + "\n")
@@ -145,7 +146,8 @@ def stage(work, platform):
         "Run bash sources/build-recipe/ffmpeg/build.sh with the platform toolchain\n"
         "documented in sources/build-recipe/ffmpeg/README.md. To modify a component,\n"
         "replace its archive and checksum in sources.json, or edit extracted sources\n"
-        "and rerun the build commands recorded in BUILD.log. No source patches applied.\n"
+        "and rerun the build commands recorded in BUILD.log. The pinned FFmpeg\n"
+        "source is patched by build.sh using the included patches/ directory.\n"
         "You may replace this separate-process executable with a modified build;\n"
         "NovelTea does not link against libav*. Preserve notices when redistributing.\n"
         "Software licenses do not settle codec patent rights in your jurisdiction.\n"

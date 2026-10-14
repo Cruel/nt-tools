@@ -33,8 +33,13 @@ remain `noveltea-ffmpeg-<platform>.tar.gz` regardless of the label. Tag pushes t
 ## Source selection and policy
 
 `sources.json` supplies the local/default pins: FFmpeg 9.0.1,
-libaom 3.15.1, libvpx 1.17.0, zlib 1.3.2, and zimg 3.0.6. External-library versions stay pinned
-when selecting another FFmpeg release. No source patches are applied.
+libaom 3.15.1, libvpx 1.17.0, zlib 1.3.2, zimg 3.0.6, and libwebp 1.6.0. External-library versions stay pinned
+when selecting another FFmpeg release. The build applies
+`patches/0001-libwebp-anim-final-timestamp.patch` to FFmpeg's libwebp animated
+encoder so the last frame uses its packet duration rather than libwebp's
+estimated duration. The upstream source archive remains unchanged; the patch
+is bundled with the complete corresponding sources. Other FFmpeg versions may
+need the patch refreshed before they can be built.
 
 The manual workflow downloads `https://ffmpeg.org/releases/ffmpeg-<version>.tar.xz`
 once over HTTPS, computes its SHA-256, and distributes that archive and a generated
@@ -47,7 +52,8 @@ native build then verifies every archive against the selected manifest. The gene
 in every release, alongside the requested release label and recipe commit.
 
 FFmpeg is LGPL-2.1-or-later in this configuration: GPL, nonfree and version3
-features are explicitly disabled. zimg uses WTFPL-2. libaom (AV1) and libvpx (VP9) provide the admitted
+features are explicitly disabled. zimg uses WTFPL-2. libaom (AV1), libvpx (VP9), and libwebp (still plus
+animated WebP via libwebpmux) provide the admitted
 output encoders, with static zlib for compressed image/media imports and
 static zimg for `zscale` color conversion and HDR preprocessing. All internal
 local-file demuxers/decoders and software filters remain enabled by default.
@@ -61,7 +67,7 @@ makes no patent-clearance claim.
 ## Rebuild / modify / relink
 
 Use Python >=3.12, Bash, C/C++, make, CMake, Ninja, NASM, Autoconf,
-Automake, Libtool, and pkg-config. Native
+Automake, Libtool, patch, and pkg-config. Native
 release hosts are Ubuntu 22.04 x64, macOS 14 arm64 with Xcode command-line tools
 and Homebrew build tools, or Windows 2022 x64 with MSYS2 MINGW64. Windows uses
 `CC=gcc CXX=g++` and the MSYS Python interpreter. The release workflow records
@@ -109,12 +115,15 @@ For an offline rebuild, copy the bundled source archives into
 `ffmpeg-build/sources/` under the extracted `sources/build-recipe/` directory,
 then run the recipe there. To build modified source, replace its cached archive
 and update its checksum in `sources.json`, or edit extracted sources and repeat
-the commands in `BUILD.log` (without rerunning the fetch step). This rebuilds and
+the commands in `BUILD.log` (without rerunning the fetch step). The standard
+`build.sh` applies the included FFmpeg patch exactly once after extracting a
+fresh verified archive. This rebuilds and
 relinks the entire standalone executable; no proprietary application objects are
 needed. Subcomponent copyright/licenses remain available in the full sources.
 
 The archive is relocatable, including paths containing spaces. Certification
-encodes and decodes AV1/VP9 WebM from deterministic local raw media, checks useful
+encodes and decodes AV1/VP9 WebM from deterministic local raw media, still plus
+animated WebP, checks useful
 import formats/codecs, license/protocol restrictions and native dependency closure,
 then validates the packaged source, requested version/label, and checksums.
 The source/build identity is pinned per release; bit-for-bit reproducibility

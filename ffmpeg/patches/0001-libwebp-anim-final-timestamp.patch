@@ -1,0 +1,56 @@
+diff --git a/libavcodec/libwebpenc_animencoder.c b/libavcodec/libwebpenc_animencoder.c
+--- a/libavcodec/libwebpenc_animencoder.c
++++ b/libavcodec/libwebpenc_animencoder.c
+@@ -24,7 +24,10 @@
+  * WebP encoder using libwebp (WebPAnimEncoder API)
+  */
+ 
++#include <limits.h>
++
+ #include "libavutil/buffer.h"
++#include "libavutil/mathematics.h"
+ #include "libavutil/mem.h"
+ 
+ #include "codec_internal.h"
+@@ -55,6 +58,7 @@ static av_cold int libwebp_anim_encode_init(AVCodecContext *avctx)
+         if (!s->enc)
+             return AVERROR(EINVAL);
+         s->first_frame_pts = AV_NOPTS_VALUE;
++        s->end_pts = AV_NOPTS_VALUE;
+         s->done = 0;
+     }
+     return ret;
+@@ -74,6 +78,21 @@ static int libwebp_anim_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
+             return 0;
+         } else {  // First flush: assemble bitstream and return it.
+             WebPData assembled_data = { 0 };
++            if (s->end_pts != AV_NOPTS_VALUE) {
++                int64_t end_ms = av_rescale_q(s->end_pts, avctx->time_base,
++                                               (AVRational){1, 1000});
++                if (end_ms < INT_MIN || end_ms > INT_MAX) {
++                    av_log(avctx, AV_LOG_ERROR, "WebP animation end timestamp is out of range\n");
++                    return AVERROR(EINVAL);
++                }
++                // The null picture gives libwebp the duration of the last
++                // frame. Otherwise it guesses from previous frame intervals.
++                if (!WebPAnimEncoderAdd(s->enc, NULL, (int)end_ms, NULL)) {
++                    av_log(avctx, AV_LOG_ERROR, "Finalizing WebP animation failed: %s\n",
++                           WebPAnimEncoderGetError(s->enc));
++                    return AVERROR(EINVAL);
++                }
++            }
+             ret = WebPAnimEncoderAssemble(s->enc, &assembled_data);
+             if (ret) {
+                 ret = ff_get_encode_buffer(avctx, pkt, assembled_data.size, 0);
+@@ -135,8 +154,10 @@ static int libwebp_anim_encode_frame(AVCodecContext *avctx, AVPacket *pkt,
+             }
+         }
+ 
+-        if (frame->pts != AV_NOPTS_VALUE)
++        if (frame->pts != AV_NOPTS_VALUE && frame->duration > 0)
+             s->end_pts = frame->pts + frame->duration;
++        else
++            s->end_pts = AV_NOPTS_VALUE;
+ 
+         ret = 0;
+         *got_packet = 0;

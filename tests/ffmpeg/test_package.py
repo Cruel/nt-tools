@@ -49,7 +49,8 @@ class PackageTests(unittest.TestCase):
                          "sources/build-recipe/ffmpeg/build.sh",
                          "sources/build-recipe/ffmpeg/package.py",
                          "sources/build-recipe/ffmpeg/sources.json",
-                         "sources/build-recipe/ffmpeg/README.md"):
+                         "sources/build-recipe/ffmpeg/README.md",
+                         "sources/build-recipe/ffmpeg/patches/0001-libwebp-anim-final-timestamp.patch"):
                 self.assertTrue((root / path).is_file(), path)
             files = set()
             for line in (root / "SHA256SUMS").read_text().splitlines():

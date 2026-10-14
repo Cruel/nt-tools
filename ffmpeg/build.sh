@@ -16,11 +16,15 @@ export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig"
 export PKG_CONFIG_LIBDIR="$PKG_CONFIG_PATH"
 export PATH="$PREFIX/bin:$PATH"
 "$PYTHON" "$ROOT/ffmpeg/package.py" fetch "$WORK"
-read -r FFMPEG_SOURCE AOM_SOURCE VPX_SOURCE ZLIB_SOURCE ZIMG_SOURCE < <(
-  "$PYTHON" -c 'import json,sys; p=json.load(open(sys.argv[1])); print(*(p[k]["directory"] for k in ("ffmpeg", "aom", "vpx", "zlib", "zimg")))' "$ROOT/ffmpeg/sources.json"
+read -r FFMPEG_SOURCE AOM_SOURCE VPX_SOURCE ZLIB_SOURCE ZIMG_SOURCE WEBP_SOURCE < <(
+  "$PYTHON" -c 'import json,sys; p=json.load(open(sys.argv[1])); print(*(p[k]["directory"] for k in ("ffmpeg", "aom", "vpx", "zlib", "zimg", "webp")))' "$ROOT/ffmpeg/sources.json"
 )
+# Apply the narrowly scoped FFmpeg libwebp animation endpoint fix to the
+# verified upstream source on every platform (including release builds).
+patch -d "$WORK/src/$FFMPEG_SOURCE" -p1 < \
+  "$ROOT/ffmpeg/patches/0001-libwebp-anim-final-timestamp.patch"
 # Start fresh: no reuse of configured objects across changes or platforms.
-rm -rf "$PREFIX" "$STAGE" "$WORK/aom-build" "$WORK/zlib-build" "$WORK/ffmpeg-build"
+rm -rf "$PREFIX" "$STAGE" "$WORK/aom-build" "$WORK/zlib-build" "$WORK/webp-build" "$WORK/ffmpeg-build"
 mkdir -p "$PREFIX" "$STAGE" "$WORK/ffmpeg-build"
 uname -a
 "$CC" --version
@@ -88,8 +92,20 @@ cmake --install "$WORK/aom-build"
   make -j "$JOBS"
   make install
 )
+# Static libwebp (libwebp plus libwebpmux for the animated encoder) with no
+# image-format tools, so no extra external dependencies enter the closure.
+cmake -S "$WORK/src/$WEBP_SOURCE" -B "$WORK/webp-build" -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$PREFIX" \
+  -DCMAKE_INSTALL_LIBDIR=lib -DBUILD_SHARED_LIBS=OFF \
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DWEBP_LINK_STATIC=ON \
+  -DWEBP_BUILD_ANIM_UTILS=OFF -DWEBP_BUILD_CWEBP=OFF -DWEBP_BUILD_DWEBP=OFF \
+  -DWEBP_BUILD_GIF2WEBP=OFF -DWEBP_BUILD_IMG2WEBP=OFF -DWEBP_BUILD_VWEBP=OFF \
+  -DWEBP_BUILD_WEBPINFO=OFF -DWEBP_BUILD_WEBPMUX=OFF -DWEBP_BUILD_EXTRAS=OFF \
+  -DWEBP_BUILD_LIBWEBPMUX=ON
+cmake --build "$WORK/webp-build" -j "$JOBS"
+cmake --install "$WORK/webp-build"
 # Record the static dependency flags that FFmpeg's configure probes will use.
-pkg-config --static --cflags --libs aom vpx zlib zimg
+pkg-config --static --cflags --libs aom vpx zlib zimg libwebp libwebpmux
 (
   cd "$WORK/ffmpeg-build"
   "$WORK/src/$FFMPEG_SOURCE/configure" --prefix="$PREFIX" \
@@ -97,7 +113,7 @@ pkg-config --static --cflags --libs aom vpx zlib zimg
     --disable-gpl --disable-nonfree --disable-version3 \
     --disable-shared --enable-static --pkg-config-flags=--static \
     --extra-cflags="-I$PREFIX/include" --extra-ldflags="-L$PREFIX/lib" \
-    --enable-libaom --enable-libvpx --enable-libzimg --enable-zlib \
+    --enable-libaom --enable-libvpx --enable-libwebp --enable-libzimg --enable-zlib \
     --disable-programs --enable-ffmpeg --disable-doc \
     --disable-network --disable-devices --disable-protocols \
     --enable-protocol=file,pipe --disable-avdevice \
