@@ -186,19 +186,31 @@ class ExecutableTests(unittest.TestCase):
             manifest = root / "timeline.ffconcat"
             # All boundaries are multiples of 50 ms, so a 20 fps image
             # timebase also conveys the last PNG packet's 50 ms duration.
+            # Use paths relative to the manifest: native Windows ffmpeg.exe
+            # does not resolve MSYS POSIX absolute paths (e.g. /tmp/...)
+            # inside ffconcat scripts, while relative entries work on all
+            # platforms (and still exercise spaces via the manifest/output args).
+            def _quote(name: str) -> str:
+                return name.replace("\\", "\\\\").replace("'", "\\'")
             manifest.write_text("\n".join(
                 ["ffconcat version 1.0"] +
                 [line for path, milliseconds in zip(paths, (200, 550, 50))
-                 for line in (f"file '{path}'", "option framerate 20",
+                 for line in (f"file '{_quote(path.name)}'", "option framerate 20",
                               f"duration {milliseconds / 1000:.3f}")]
             ) + "\n")
             animated = root / "alpha.webp"
-            subprocess.run([
+            completed = subprocess.run([
                 self.binary, "-nostdin", "-v", "error", "-y",
                 "-safe", "0", "-f", "concat", "-i", str(manifest),
                 "-fps_mode", "passthrough", "-c:v", "libwebp_anim",
                 "-lossless", "1", "-pix_fmt", "bgra", str(animated),
-            ], check=True, capture_output=True, timeout=120)
+            ], capture_output=True, timeout=120)
+            self.assertEqual(
+                completed.returncode, 0,
+                f"ffmpeg concat->libwebp_anim failed (exit {completed.returncode})\n"
+                f"manifest:\n{manifest.read_text()}\n"
+                f"stderr:\n{completed.stderr.decode('utf-8', 'replace')}\n"
+                f"stdout:\n{completed.stdout.decode('utf-8', 'replace')}")
 
             blob = animated.read_bytes()
             self.assertEqual(blob[:4], b"RIFF")
